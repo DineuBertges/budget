@@ -228,8 +228,8 @@ const Filters = ({ filters, onFiltersChange, accounts }) => {
                 onChange={handleFilterChange('transactionType')}
               >
                 <MenuItem value="">Todos os tipos</MenuItem>
-                <MenuItem value="income">💚 Receita</MenuItem>
-                <MenuItem value="expense">💸 Despesa</MenuItem>
+                <MenuItem value="entrada">💚 Receita</MenuItem>
+                <MenuItem value="saida">💸 Despesa</MenuItem>
               </Select>
             </FormControl>
           </Grid>

@@ -404,31 +404,36 @@ const Dashboard = () => {
             </Grid>
 
             {/* Balance Chart */}
-            <Grid item xs={12} lg={8}>
+            <Grid item xs={12}>
               <BalanceChart accounts={accounts} />
             </Grid>
 
-            {/* Filters */}
-            <Grid item xs={12} lg={4}>
-              <Filters 
-                filters={filters} 
-                onFiltersChange={handleFiltersChange}
-                accounts={accounts}
-              />
-            </Grid>
-
-            {/* Transaction List */}
+            {/* Transactions Section with Filters Side by Side */}
             <Grid item xs={12}>
               <Typography variant="h5" gutterBottom sx={{ mt: 2 }} fontWeight="bold">
                 📋 Transações Recentes
               </Typography>
-              <TransactionList 
-                transactions={transactions} 
-                accounts={accounts}
-                loading={loading}
-                onTransactionUpdate={handleTransactionUpdate}
-                onTransactionDelete={handleTransactionDelete}
-              />
+              <Grid container spacing={2}>
+                {/* Filters */}
+                <Grid item xs={12} md={3}>
+                  <Filters 
+                    filters={filters} 
+                    onFiltersChange={handleFiltersChange}
+                    accounts={accounts}
+                  />
+                </Grid>
+                
+                {/* Transaction List */}
+                <Grid item xs={12} md={9}>
+                  <TransactionList 
+                    transactions={transactions} 
+                    accounts={accounts}
+                    loading={loading}
+                    onTransactionUpdate={handleTransactionUpdate}
+                    onTransactionDelete={handleTransactionDelete}
+                  />
+                </Grid>
+              </Grid>
             </Grid>
           </Grid>
         </TabPanel>

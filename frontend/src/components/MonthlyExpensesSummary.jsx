@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   CardContent,
@@ -24,11 +24,7 @@ const MonthlyExpensesSummary = ({ selectedAccountIds = [], accounts = [] }) => {
     loading: true
   });
 
-  useEffect(() => {
-    fetchMonthlyData();
-  }, [selectedAccountIds]);
-
-  const fetchMonthlyData = async () => {
+  const fetchMonthlyData = useCallback(async () => {
     setMonthlyData(prev => ({ ...prev, loading: true }));
     
     try {
@@ -72,7 +68,11 @@ const MonthlyExpensesSummary = ({ selectedAccountIds = [], accounts = [] }) => {
       console.error('Erro ao buscar dados mensais:', error);
       setMonthlyData(prev => ({ ...prev, loading: false }));
     }
-  };
+  }, [selectedAccountIds, accounts]);
+
+  useEffect(() => {
+    fetchMonthlyData();
+  }, [fetchMonthlyData]);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('pt-BR', {
