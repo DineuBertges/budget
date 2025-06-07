@@ -33,6 +33,7 @@ import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
 
 import { useThemeMode } from '../App';
+import apiCache from '../utils/apiCache';
 import TransactionList from '../components/TransactionList';
 import TransactionForm from '../components/TransactionForm';
 import AccountIndicator from '../components/AccountIndicator';
@@ -67,7 +68,6 @@ const Dashboard = () => {
   const [transactions, setTransactions] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [selectedAccountIds, setSelectedAccountIds] = useState([]);
-  const [selectionMode, setSelectionMode] = useState(false);
   const [openForm, setOpenForm] = useState(false);
   const [filters, setFilters] = useState({
     month: '',
@@ -85,8 +85,7 @@ const Dashboard = () => {
 
   const loadAccounts = useCallback(async () => {
     try {
-      const response = await fetch('http://localhost:8000/accounts/');
-      const data = await response.json();
+      const data = await apiCache.fetchWithCache('http://localhost:8000/accounts/');
       setAccounts(data);
     } catch (error) {
       console.error('Erro ao carregar contas:', error);
@@ -96,16 +95,15 @@ const Dashboard = () => {
   const loadTransactions = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (filters.month) params.append('month', filters.month);
-      if (filters.year) params.append('year', filters.year);
-      if (filters.transactionType) params.append('transaction_type', filters.transactionType);
-      if (filters.category) params.append('category', filters.category);
-      if (filters.accountId) params.append('account_id', filters.accountId);
-      if (filters.description) params.append('description', filters.description);
+      const params = {};
+      if (filters.month) params.month = filters.month;
+      if (filters.year) params.year = filters.year;
+      if (filters.transactionType) params.transaction_type = filters.transactionType;
+      if (filters.category) params.category = filters.category;
+      if (filters.accountId) params.account_id = filters.accountId;
+      if (filters.description) params.description = filters.description;
 
-      const response = await fetch(`http://localhost:8000/transactions/?${params}`);
-      let data = await response.json();
+      let data = await apiCache.fetchWithCache('http://localhost:8000/transactions/', params);
       
       // Apply client-side value filters if API doesn't support them yet
       if (filters.minAmount !== '') {
@@ -175,6 +173,9 @@ const Dashboard = () => {
 
   const handleTransactionCreated = () => {
     setOpenForm(false);
+    // Limpar cache para forçar reload dos dados
+    apiCache.clear('transactions');
+    apiCache.clear('accounts');
     loadTransactions();
     loadAccounts(); // Reload accounts to update balances
     showSnackbar('Transação criada com sucesso!', 'success');
@@ -194,41 +195,50 @@ const Dashboard = () => {
         throw new Error('Erro ao atualizar transação');
       }
 
+      // Limpar cache para forçar reload dos dados
+      apiCache.clear('transactions');
+      apiCache.clear('accounts');
       loadTransactions();
       loadAccounts();
       showSnackbar('Transação atualizada com sucesso!', 'success');
     } catch (error) {
       console.error('Erro ao atualizar transação:', error);
       showSnackbar('Erro ao atualizar transação', 'error');
-      throw error;
     }
   };
 
   const handleTransactionDelete = async (transactionId) => {
-    try {
-      const response = await fetch(`http://localhost:8000/transactions/${transactionId}`, {
-        method: 'DELETE',
-      });
+    if (window.confirm('Tem certeza que deseja excluir esta transação?')) {
+      try {
+        const response = await fetch(`http://localhost:8000/transactions/${transactionId}`, {
+          method: 'DELETE',
+        });
 
-      if (!response.ok) {
-        throw new Error('Erro ao excluir transação');
+        if (!response.ok) {
+          throw new Error('Erro ao excluir transação');
+        }
+
+        // Limpar cache para forçar reload dos dados
+        apiCache.clear('transactions');
+        apiCache.clear('accounts');
+        loadTransactions();
+        loadAccounts();
+        showSnackbar('Transação excluída com sucesso!', 'success');
+      } catch (error) {
+        console.error('Erro ao excluir transação:', error);
+        showSnackbar('Erro ao excluir transação', 'error');
       }
-
-      loadTransactions();
-      loadAccounts();
-      showSnackbar('Transação excluída com sucesso!', 'success');
-    } catch (error) {
-      console.error('Erro ao excluir transação:', error);
-      showSnackbar('Erro ao excluir transação', 'error');
-      throw error;
     }
   };
 
   const handleAccountUpdate = (updatedAccount) => {
-    setAccounts(accounts.map(account => 
-      account.id === updatedAccount.id ? updatedAccount : account
-    ));
-    showSnackbar('Conta atualizada com sucesso!', 'success');
+    setAccounts(prevAccounts =>
+      prevAccounts.map(account =>
+        account.id === updatedAccount.id ? updatedAccount : account
+      )
+    );
+    // Limpar cache das contas
+    apiCache.clear('accounts');
   };
 
   const handleFiltersChange = (newFilters) => {
@@ -248,13 +258,6 @@ const Dashboard = () => {
       setSelectedAccountIds([]);
     } else {
       setSelectedAccountIds(accounts.map(account => account.id));
-    }
-  };
-
-  const handleToggleSelectionMode = () => {
-    setSelectionMode(!selectionMode);
-    if (!selectionMode) {
-      setSelectedAccountIds([]);
     }
   };
 
@@ -351,24 +354,13 @@ const Dashboard = () => {
                   💳 Saldo das Contas
                 </Typography>
                 <Box display="flex" alignItems="center" gap={2}>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={selectionMode}
-                        onChange={handleToggleSelectionMode}
-                      />
-                    }
-                    label="Modo Seleção"
-                  />
-                  {selectionMode && (
-                    <Button 
-                      variant="outlined" 
-                      size="small"
-                      onClick={handleSelectAll}
-                    >
-                      {selectedAccountIds.length === accounts.length ? 'Desmarcar Todas' : 'Selecionar Todas'}
-                    </Button>
-                  )}
+                  <Button 
+                    variant="outlined" 
+                    size="small"
+                    onClick={handleSelectAll}
+                  >
+                    {selectedAccountIds.length === accounts.length ? 'Desmarcar Todas' : 'Selecionar Todas'}
+                  </Button>
                 </Box>
               </Box>
               <Grid container spacing={2}>
@@ -378,7 +370,7 @@ const Dashboard = () => {
                       account={account} 
                       onAccountUpdate={handleAccountUpdate}
                       isSelected={selectedAccountIds.includes(account.id)}
-                      onToggleSelection={selectionMode ? handleToggleSelection : null}
+                      onToggleSelection={handleToggleSelection}
                     />
                   </Grid>
                 ))}
@@ -386,14 +378,12 @@ const Dashboard = () => {
             </Grid>
 
             {/* Account Summary */}
-            {(selectionMode || selectedAccountIds.length > 0) && (
-              <Grid item xs={12}>
-                <AccountSummary 
-                  accounts={accounts}
-                  selectedAccountIds={selectedAccountIds}
-                />
-              </Grid>
-            )}
+            <Grid item xs={12}>
+              <AccountSummary 
+                accounts={accounts}
+                selectedAccountIds={selectedAccountIds}
+              />
+            </Grid>
 
             {/* Monthly Expenses Summary */}
             <Grid item xs={12}>
@@ -403,28 +393,19 @@ const Dashboard = () => {
               />
             </Grid>
 
-            {/* Balance Chart */}
+            {/* Balance Chart - Expandido */}
             <Grid item xs={12}>
               <BalanceChart accounts={accounts} />
             </Grid>
 
-            {/* Transactions Section with Filters Side by Side */}
+            {/* Transações e Filtros lado a lado */}
             <Grid item xs={12}>
               <Typography variant="h5" gutterBottom sx={{ mt: 2 }} fontWeight="bold">
                 📋 Transações Recentes
               </Typography>
-              <Grid container spacing={2}>
-                {/* Filters */}
-                <Grid item xs={12} md={3}>
-                  <Filters 
-                    filters={filters} 
-                    onFiltersChange={handleFiltersChange}
-                    accounts={accounts}
-                  />
-                </Grid>
-                
+              <Grid container spacing={3}>
                 {/* Transaction List */}
-                <Grid item xs={12} md={9}>
+                <Grid item xs={12} lg={8}>
                   <TransactionList 
                     transactions={transactions} 
                     accounts={accounts}
@@ -432,6 +413,38 @@ const Dashboard = () => {
                     onTransactionUpdate={handleTransactionUpdate}
                     onTransactionDelete={handleTransactionDelete}
                   />
+                </Grid>
+
+                {/* Filters - Sticky Position */}
+                <Grid item xs={12} lg={4}>
+                  <Box 
+                    sx={{ 
+                      position: 'sticky',
+                      top: 20,
+                      zIndex: 10,
+                      maxHeight: 'calc(100vh - 40px)',
+                      overflowY: 'auto',
+                      '&::-webkit-scrollbar': {
+                        width: '6px',
+                      },
+                      '&::-webkit-scrollbar-track': {
+                        background: 'transparent',
+                      },
+                      '&::-webkit-scrollbar-thumb': {
+                        background: 'rgba(0,0,0,.2)',
+                        borderRadius: '3px',
+                      },
+                      '&::-webkit-scrollbar-thumb:hover': {
+                        background: 'rgba(0,0,0,.4)',
+                      },
+                    }}
+                  >
+                    <Filters 
+                      filters={filters} 
+                      onFiltersChange={handleFiltersChange}
+                      accounts={accounts}
+                    />
+                  </Box>
                 </Grid>
               </Grid>
             </Grid>
