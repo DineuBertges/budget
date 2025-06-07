@@ -15,8 +15,6 @@ import {
   Snackbar,
   Alert,
   Button,
-  FormControlLabel,
-  Switch,
   IconButton,
   Tooltip,
   Tabs,

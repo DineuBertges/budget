@@ -4,8 +4,7 @@ import {
   CardContent,
   Typography,
   Box,
-  Grid,
-  Divider,
+  Grid
 } from '@mui/material';
 import {
   TrendingUp as TrendingUpIcon,
